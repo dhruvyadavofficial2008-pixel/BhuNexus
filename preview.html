@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Land Acquisition System — Live Preview</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+    --primary: #1b5e3a; --primary-dark: #123f27; --accent: #d98c1f;
+    --bg: #f4f6f5; --card-bg: #ffffff; --text: #232323; --muted: #6b7280;
+    --danger: #c0392b; --border: #e2e5e3;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); }
+a { text-decoration: none; color: inherit; cursor: pointer; }
+.navbar { background: var(--primary); color: #fff; padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; }
+.navbar .brand { font-size: 1.2rem; font-weight: 600; }
+.navbar .nav-links a { color: #fff; margin-left: 18px; font-size: 0.95rem; opacity: 0.85; }
+.navbar .nav-links a.active, .navbar .nav-links a:hover { opacity: 1; text-decoration: underline; }
+.banner { background: #fff8e6; color: #7a5a0a; padding: 8px 28px; font-size: 0.85rem; border-bottom: 1px solid #f0dca0; }
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.page-title { font-size: 1.5rem; margin-bottom: 18px; color: var(--primary-dark); }
+.grid { display: grid; gap: 18px; }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 900px) { .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+.card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+.stat-card { text-align: center; }
+.stat-card .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+.stat-card .stat-label { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+.auth-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+.auth-box { background: #fff; padding: 36px; border-radius: 12px; width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.auth-box h2 { color: var(--primary-dark); margin-bottom: 6px; }
+.auth-box p.subtitle { color: var(--muted); margin-bottom: 20px; font-size: 0.9rem; }
+label { display: block; font-size: 0.85rem; margin-bottom: 4px; color: var(--muted); }
+input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 14px; font-size: 0.95rem; font-family: inherit; }
+button, .btn { background: var(--primary); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 0.95rem; display: inline-block; }
+button:hover, .btn:hover { background: var(--primary-dark); }
+.btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+.demo-accounts { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 12px; font-size: 0.85rem; color: var(--muted); }
+.demo-accounts .acc { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+table { width: 100%; border-collapse: collapse; background: #fff; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+th { background: #eef2ee; color: var(--primary-dark); }
+.badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.badge-identify, .badge-survey { background: #e5e7eb; color: #374151; }
+.badge-notify { background: #fef3c7; color: #92400e; }
+.badge-verify { background: #dbeafe; color: #1e40af; }
+.badge-acquire { background: #ede9fe; color: #5b21b6; }
+.badge-compensate { background: #fce7f3; color: #9d174d; }
+.badge-monitor { background: #d1fae5; color: #065f46; }
+.badge-pending { background: #fef3c7; color: #92400e; }
+.badge-partial { background: #dbeafe; color: #1e40af; }
+.badge-paid { background: #d1fae5; color: #065f46; }
+.badge-open { background: #fee2e2; color: #991b1b; }
+.badge-under_review { background: #fef3c7; color: #92400e; }
+.badge-resolved { background: #d1fae5; color: #065f46; }
+.badge-HIGH { background: #fee2e2; color: #991b1b; }
+.badge-MEDIUM { background: #fef3c7; color: #92400e; }
+.badge-LOW { background: #d1fae5; color: #065f46; }
+.timeline { list-style: none; }
+.timeline li { position: relative; padding: 10px 0 10px 30px; border-left: 2px solid var(--border); margin-left: 10px; }
+.timeline li::before { content: ''; position: absolute; left: -7px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--border); }
+.timeline li.done::before { background: var(--primary); }
+.timeline .stage-name { font-weight: 600; text-transform: capitalize; }
+.timeline .stage-time { color: var(--muted); font-size: 0.8rem; }
+#map { height: 460px; border-radius: 10px; border: 1px solid var(--border); }
+.section { margin-bottom: 28px; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+.view { display: none; }
+.view.active { display: block; }
+.back-link { display: inline-block; margin-bottom: 14px; color: var(--primary); font-weight: 600; }
+.recommendation-box { margin-top: 14px; padding: 14px; background: #fef9f0; border: 1px solid #f0dca0; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN VIEW ============ -->
+<div id="view-login" class="view active">
+    <div class="auth-wrapper">
+        <div class="auth-box">
+            <h2>Land Acquisition System</h2>
+            <p class="subtitle">Real-Time National Land Acquisition & Management</p>
+            <div id="login-error" style="color:var(--danger); font-size:0.85rem; margin-bottom:10px; display:none">Invalid email or password.</div>
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="admin@land.gov">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="password123">
+            <button style="width:100%" onclick="doLogin()">Login</button>
+            <div class="demo-accounts">
+                <b>Demo accounts</b> (any password works in this preview)
+                <div class="acc"><span>👤 Admin — admin@land.gov</span><a class="btn btn-outline" style="padding:4px 10px" onclick="quickLogin('admin')">Use</a></div>
+                <div class="acc"><span>🧑 Citizen — ramesh@example.com</span><a class="btn btn-outline" style="padding:4px 10px" onclick="quickLogin('citizen')">Use</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MAIN APP (after login) ============ -->
+<div id="view-app" class="view">
+    <div class="navbar">
+        <div class="brand">🏛️ Land Acquisition System</div>
+        <div class="nav-links" id="nav-links"></div>
+    </div>
+    <div class="banner">🖥️ Browser preview with sample data — no install needed. The full PHP + MySQL version is in the zip already shared.</div>
+
+    <!-- Admin Dashboard -->
+    <div id="view-admin-dashboard" class="view">
+        <div class="container">
+            <h1 class="page-title">Admin Dashboard</h1>
+            <div class="grid grid-4 section">
+                <div class="card stat-card"><div class="stat-value">2</div><div class="stat-label">Active Projects</div></div>
+                <div class="card stat-card"><div class="stat-value">3</div><div class="stat-label">Land Parcels</div></div>
+                <div class="card stat-card"><div class="stat-value">2</div><div class="stat-label">Open Disputes</div></div>
+                <div class="card stat-card"><div class="stat-value">2</div><div class="stat-label">Pending Compensation</div></div>
+            </div>
+            <div class="grid grid-3 section">
+                <div class="card"><h3 style="margin-bottom:10px; font-size:0.95rem">Parcels by Stage</h3><canvas id="stageChart"></canvas></div>
+                <div class="card"><h3 style="margin-bottom:10px; font-size:0.95rem">Compensation Status</h3><canvas id="compChart"></canvas></div>
+                <div class="card"><h3 style="margin-bottom:10px; font-size:0.95rem">Grievance Status</h3><canvas id="grievChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="flex-between"><h3>Recent Parcels</h3><a class="btn btn-outline" onclick="showView('map')">Open Map</a></div>
+                <table style="margin-top:10px" id="admin-parcel-table"></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Citizen Dashboard -->
+    <div id="view-citizen-dashboard" class="view">
+        <div class="container">
+            <h1 class="page-title">Welcome, Ramesh Kumar</h1>
+            <div class="grid grid-3 section">
+                <div class="card stat-card"><div class="stat-value">2</div><div class="stat-label">My Land Parcels</div></div>
+                <div class="card stat-card"><div class="stat-value">1</div><div class="stat-label">Open Grievances</div></div>
+                <div class="card stat-card"><a class="btn" style="width:100%; display:block; text-align:center" onclick="showView('grievance')">File a Grievance</a></div>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:10px">My Parcels & Acquisition Status</h3>
+                <table id="citizen-parcel-table"></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div id="view-map" class="view">
+        <div class="container">
+            <h1 class="page-title">Interactive Land Parcel Map</h1>
+            <p class="muted section">Click a marker to view parcel details, owner and acquisition stage.</p>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Parcel Details -->
+    <div id="view-parcel" class="view">
+        <div class="container" id="parcel-detail-container"></div>
+    </div>
+
+    <!-- Grievances -->
+    <div id="view-grievance" class="view">
+        <div class="container">
+            <h1 class="page-title">Grievances / Objections</h1>
+            <table id="grievance-table"></table>
+        </div>
+    </div>
+
+    <!-- Risk Analysis -->
+    <div id="view-risk" class="view">
+        <div class="container">
+            <h1 class="page-title">AI-Assisted Acquisition Risk Analysis</h1>
+            <p class="muted section">Transparent, rule-based decision-support score — not a trained ML model.<br>
+            Formula: <b>Risk Score = Disputes×5 + Pending Compensation×2 + Delay Days×0.5 + Pending Documents×1</b></p>
+            <div class="card section">
+                <div style="display:flex; gap:12px; align-items:flex-end">
+                    <div style="flex:1">
+                        <label>Select Project</label>
+                        <select id="risk-project">
+                            <option value="1">NH-44 Highway Expansion</option>
+                            <option value="2">Metro Rail Phase 2</option>
+                        </select>
+                    </div>
+                    <button style="margin-bottom:14px" onclick="runRiskAnalysis()">Run Risk Analysis</button>
+                </div>
+            </div>
+            <div id="risk-result"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================== MOCK DATA (mirrors schema.sql) ==================
+const projects = {
+    1: { name: 'NH-44 Highway Expansion', department: 'Roads & Highways' },
+    2: { name: 'Metro Rail Phase 2', department: 'Urban Transport' }
+};
+
+const parcels = [
+    { id:1, code:'PCL-001', owner:'Ramesh Kumar', ownerId:2, project:1, village:'Rampur', district:'Central District', state:'Demo State',
+      area:2.50, lat:28.6139, lng:77.2090, stage:'notify', value:1500000,
+      timeline:[ {stage:'identify', remarks:'Parcel identified for highway corridor', time:'2025-01-12'},
+                 {stage:'survey', remarks:'Survey completed', time:'2025-02-03'},
+                 {stage:'notify', remarks:'Notice served to owner', time:'2025-02-20'} ],
+      documents:[ {name:'title_deed_pcl001.pdf', type:'Title Deed', status:'verified'} ],
+      compensation:{ due:1500000, paid:0, status:'pending', delay:12 } },
+    { id:2, code:'PCL-002', owner:'Sita Devi', ownerId:3, project:1, village:'Rampur', district:'Central District', state:'Demo State',
+      area:1.20, lat:28.6200, lng:77.2150, stage:'verify', value:900000,
+      timeline:[ {stage:'identify', remarks:'Parcel identified', time:'2025-01-15'},
+                 {stage:'survey', remarks:'Survey in progress', time:'2025-02-05'},
+                 {stage:'notify', remarks:'Notice served', time:'2025-02-22'},
+                 {stage:'verify', remarks:'Ownership verification pending', time:'2025-03-01'} ],
+      documents:[ {name:'survey_report_pcl002.pdf', type:'Survey Report', status:'pending'} ],
+      compensation:{ due:900000, paid:300000, status:'partial', delay:25 } },
+    { id:3, code:'PCL-003', owner:'Ramesh Kumar', ownerId:2, project:2, village:'Shivpur', district:'North District', state:'Demo State',
+      area:3.10, lat:28.7041, lng:77.1025, stage:'compensate', value:2100000,
+      timeline:[ {stage:'identify', remarks:'Parcel identified', time:'2025-03-05'},
+                 {stage:'survey', remarks:'Survey completed', time:'2025-03-18'},
+                 {stage:'notify', remarks:'Notice served', time:'2025-04-01'},
+                 {stage:'verify', remarks:'Ownership verified', time:'2025-04-15'},
+                 {stage:'acquire', remarks:'Acquisition order passed', time:'2025-05-02'},
+                 {stage:'compensate', remarks:'Compensation calculation in progress', time:'2025-05-20'} ],
+      documents:[],
+      compensation:{ due:2100000, paid:2100000, status:'paid', delay:0 } }
+];
+
+let grievances = [
+    { id:1, parcelId:2, parcelCode:'PCL-002', citizen:'Sita Devi', subject:'Incorrect area measurement', description:'The surveyed area does not match my land records.', status:'open' },
+    { id:2, parcelId:1, parcelCode:'PCL-001', citizen:'Ramesh Kumar', subject:'Compensation amount dispute', description:'Market value used seems lower than nearby parcels.', status:'under_review' }
+];
+
+const STAGES = ['identify','survey','notify','verify','acquire','compensate','monitor'];
+let currentUser = null; // {role, name}
+let mapInstance = null;
+
+// ================== AUTH ==================
+function quickLogin(role) {
+    document.getElementById('login-email').value = role === 'admin' ? 'admin@land.gov' : 'ramesh@example.com';
+    doLogin();
+}
+function doLogin() {
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    let role, name;
+    if (email === 'admin@land.gov') { role = 'admin'; name = 'State Admin'; }
+    else if (email === 'ramesh@example.com') { role = 'citizen'; name = 'Ramesh Kumar'; }
+    else if (email === 'sita@example.com') { role = 'citizen'; name = 'Sita Devi'; }
+    else { document.getElementById('login-error').style.display = 'block'; return; }
+
+    currentUser = { role, name };
+    renderNav();
+    document.getElementById('view-login').classList.remove('active');
+    document.getElementById('view-app').classList.add('active');
+    showView(role === 'admin' ? 'admin-dashboard' : 'citizen-dashboard');
+}
+function logout() {
+    currentUser = null;
+    document.getElementById('view-app').classList.remove('active');
+    document.getElementById('view-login').classList.add('active');
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-error').style.display = 'none';
+}
+function renderNav() {
+    const nav = document.getElementById('nav-links');
+    if (currentUser.role === 'admin') {
+        nav.innerHTML = `
+            <a onclick="showView('admin-dashboard')">Dashboard</a>
+            <a onclick="showView('map')">GIS Map</a>
+            <a onclick="showView('risk')">Risk Analysis</a>
+            <a onclick="showView('grievance')">Grievances</a>
+            <span class="muted" style="color:#e5e7eb">| ${currentUser.name}</span>
+            <a onclick="logout()">Logout</a>`;
+    } else {
+        nav.innerHTML = `
+            <a onclick="showView('citizen-dashboard')">My Dashboard</a>
+            <a onclick="showView('map')">GIS Map</a>
+            <a onclick="showView('grievance')">Grievances</a>
+            <span class="muted" style="color:#e5e7eb">| ${currentUser.name}</span>
+            <a onclick="logout()">Logout</a>`;
+    }
+}
+
+// ================== VIEW ROUTER ==================
+function showView(name) {
+    document.querySelectorAll('#view-app .view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    if (name === 'admin-dashboard') renderAdminDashboard();
+    if (name === 'citizen-dashboard') renderCitizenDashboard();
+    if (name === 'map') setTimeout(renderMap, 50);
+    if (name === 'grievance') renderGrievances();
+}
+
+// ================== BADGES ==================
+function badge(cls, label) { return `<span class="badge badge-${cls}">${label}</span>`; }
+function stageBadge(s) { return badge(s, s.charAt(0).toUpperCase() + s.slice(1)); }
+function compBadge(s) { return badge(s, s.charAt(0).toUpperCase() + s.slice(1)); }
+function grievBadge(s) { return badge(s, s.split('_').map(w=>w[0].toUpperCase()+w.slice(1)).join(' ')); }
+
+// ================== ADMIN DASHBOARD ==================
+function renderAdminDashboard() {
+    const table = document.getElementById('admin-parcel-table');
+    table.innerHTML = `<tr><th>Code</th><th>Owner</th><th>Stage</th><th></th></tr>` +
+        parcels.map(p => `<tr>
+            <td>${p.code}</td><td>${p.owner}</td><td>${stageBadge(p.stage)}</td>
+            <td><a class="btn btn-outline" onclick="openParcel(${p.id})">View</a></td>
+        </tr>`).join('');
+
+    if (window._stageChart) window._stageChart.destroy();
+    if (window._compChart) window._compChart.destroy();
+    if (window._grievChart) window._grievChart.destroy();
+    const palette = ['#1b5e3a','#d98c1f','#1e40af','#5b21b6','#9d174d','#065f46','#6b7280'];
+
+    const stageCounts = {};
+    parcels.forEach(p => stageCounts[p.stage] = (stageCounts[p.stage]||0)+1);
+    window._stageChart = new Chart(document.getElementById('stageChart'), {
+        type: 'bar',
+        data: { labels: Object.keys(stageCounts), datasets: [{ label:'Parcels', data:Object.values(stageCounts), backgroundColor:palette }] },
+        options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+    });
+
+    const compCounts = {};
+    parcels.forEach(p => compCounts[p.compensation.status] = (compCounts[p.compensation.status]||0)+1);
+    window._compChart = new Chart(document.getElementById('compChart'), {
+        type: 'doughnut',
+        data: { labels: Object.keys(compCounts), datasets: [{ data:Object.values(compCounts), backgroundColor:palette }] }
+    });
+
+    const grievCounts = {};
+    grievances.forEach(g => grievCounts[g.status] = (grievCounts[g.status]||0)+1);
+    window._grievChart = new Chart(document.getElementById('grievChart'), {
+        type: 'doughnut',
+        data: { labels: Object.keys(grievCounts), datasets: [{ data:Object.values(grievCounts), backgroundColor:palette }] }
+    });
+}
+
+// ================== CITIZEN DASHBOARD ==================
+function renderCitizenDashboard() {
+    const mine = parcels.filter(p => p.owner === 'Ramesh Kumar');
+    const table = document.getElementById('citizen-parcel-table');
+    table.innerHTML = `<tr><th>Parcel Code</th><th>Project</th><th>Location</th><th>Area</th><th>Stage</th><th>Compensation</th><th></th></tr>` +
+        mine.map(p => `<tr>
+            <td>${p.code}</td><td>${projects[p.project].name}</td><td>${p.village}, ${p.district}</td>
+            <td>${p.area} acres</td><td>${stageBadge(p.stage)}</td><td>${compBadge(p.compensation.status)}</td>
+            <td><a class="btn btn-outline" onclick="openParcel(${p.id})">View</a></td>
+        </tr>`).join('');
+}
+
+// ================== MAP ==================
+function renderMap() {
+    if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+    mapInstance = L.map('map').setView([28.65, 77.15], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mapInstance);
+
+    const stageColors = { identify:'#6b7280', survey:'#6b7280', notify:'#d98c1f', verify:'#1e40af', acquire:'#5b21b6', compensate:'#9d174d', monitor:'#065f46' };
+    const bounds = [];
+    const visible = currentUser.role === 'admin' ? parcels : parcels.filter(p => p.owner === currentUser.name);
+    visible.forEach(p => {
+        const marker = L.circleMarker([p.lat, p.lng], { radius:10, fillColor: stageColors[p.stage]||'#1b5e3a', color:'#fff', weight:2, fillOpacity:0.9 }).addTo(mapInstance);
+        marker.bindPopup(`
+            <b>${p.code}</b><br>Owner: ${p.owner}<br>Project: ${projects[p.project].name}<br>
+            Location: ${p.village}, ${p.district}<br>Area: ${p.area} acres<br>
+            Stage: <b style="text-transform:capitalize">${p.stage}</b><br>
+            <a onclick="openParcel(${p.id})" style="color:#1b5e3a; font-weight:600">View full details →</a>
+        `);
+        bounds.push([p.lat, p.lng]);
+    });
+    if (bounds.length) mapInstance.fitBounds(bounds, { padding:[40,40] });
+}
+
+// ================== PARCEL DETAILS ==================
+function openParcel(id) {
+    const p = parcels.find(x => x.id === id);
+    const c = document.getElementById('parcel-detail-container');
+    const timelineHtml = STAGES.map(s => {
+        const entry = p.timeline.find(t => t.stage === s);
+        return `<li class="${entry ? 'done' : ''}">
+            <div class="stage-name">${s}</div>
+            <div class="muted">${entry ? entry.remarks : 'Not yet reached'}</div>
+            ${entry ? `<div class="stage-time">${entry.time}</div>` : ''}
+        </li>`;
+    }).join('');
+
+    const docsHtml = p.documents.length ? p.documents.map(d => `<tr>
+        <td>${d.name}</td><td>${d.type}</td>
+        <td>${badge(d.status==='verified'?'paid':d.status==='rejected'?'open':'pending', d.status.charAt(0).toUpperCase()+d.status.slice(1))}</td>
+    </tr>`).join('') : `<tr><td colspan="3" class="muted">No documents uploaded yet.</td></tr>`;
+
+    const parcelGrievances = grievances.filter(g => g.parcelId === p.id);
+    const grievHtml = parcelGrievances.length ? parcelGrievances.map(g => `<tr>
+        <td>${g.subject}</td><td>${g.description}</td><td>${grievBadge(g.status)}</td>
+    </tr>`).join('') : `<tr><td colspan="3" class="muted">No grievances filed for this parcel.</td></tr>`;
+
+    c.innerHTML = `
+        <a class="back-link" onclick="showView(currentUser.role==='admin'?'admin-dashboard':'citizen-dashboard')">← Back to dashboard</a>
+        <div class="flex-between section">
+            <h1 class="page-title">Parcel ${p.code}</h1>
+            ${stageBadge(p.stage)}
+        </div>
+        <div class="grid grid-2 section">
+            <div class="card">
+                <h3 style="margin-bottom:10px">Parcel Information</h3>
+                <p><b>Owner:</b> ${p.owner}</p>
+                <p><b>Project:</b> ${projects[p.project].name}</p>
+                <p><b>Location:</b> ${p.village}, ${p.district}, ${p.state}</p>
+                <p><b>Area:</b> ${p.area} acres</p>
+                <p><b>Market Value:</b> ₹${p.value.toLocaleString('en-IN')}</p>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:10px">Compensation</h3>
+                <p><b>Amount Due:</b> ₹${p.compensation.due.toLocaleString('en-IN')}</p>
+                <p><b>Amount Paid:</b> ₹${p.compensation.paid.toLocaleString('en-IN')}</p>
+                <p><b>Status:</b> ${compBadge(p.compensation.status)}</p>
+                <p><b>Delay:</b> ${p.compensation.delay} days</p>
+            </div>
+        </div>
+        <div class="grid grid-2 section">
+            <div class="card"><h3 style="margin-bottom:10px">Acquisition Timeline</h3><ul class="timeline">${timelineHtml}</ul></div>
+            <div class="card"><h3 style="margin-bottom:10px">Documents</h3>
+                <table><tr><th>File</th><th>Type</th><th>Status</th></tr>${docsHtml}</table>
+            </div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:10px">Grievances / Objections</h3>
+            <table><tr><th>Subject</th><th>Description</th><th>Status</th></tr>${grievHtml}</table>
+        </div>
+    `;
+    showView('parcel');
+}
+
+// ================== GRIEVANCES ==================
+function renderGrievances() {
+    const list = currentUser.role === 'admin' ? grievances : grievances.filter(g => g.citizen === currentUser.name);
+    const table = document.getElementById('grievance-table');
+    table.innerHTML = `<tr><th>Parcel</th><th>Citizen</th><th>Subject</th><th>Description</th><th>Status</th></tr>` +
+        (list.length ? list.map(g => `<tr>
+            <td><a onclick="openParcel(${g.parcelId})" style="color:var(--primary); font-weight:600">${g.parcelCode}</a></td>
+            <td>${g.citizen}</td><td>${g.subject}</td><td>${g.description}</td><td>${grievBadge(g.status)}</td>
+        </tr>`).join('') : `<tr><td colspan="5" class="muted">No grievances found.</td></tr>`);
+}
+
+// ================== RISK ANALYSIS ==================
+function runRiskAnalysis() {
+    const projectId = parseInt(document.getElementById('risk-project').value);
+    const projParcels = parcels.filter(p => p.project === projectId);
+
+    const disputes = grievances.filter(g => projParcels.some(p => p.id === g.parcelId) && g.status !== 'resolved').length;
+    const pendingComp = projParcels.filter(p => p.compensation.status !== 'paid').length;
+    const delays = projParcels.map(p => p.compensation.delay);
+    const avgDelay = delays.length ? (delays.reduce((a,b)=>a+b,0) / delays.length) : 0;
+    const pendingDocs = projParcels.reduce((sum,p) => sum + p.documents.filter(d => d.status==='pending').length, 0);
+
+    const score = (disputes*5) + (pendingComp*2) + (avgDelay*0.5) + (pendingDocs*1);
+    let label, recommendation;
+    if (score >= 25) { label='HIGH'; recommendation='HIGH RISK — prioritize dispute resolution and compensation verification before proceeding further.'; }
+    else if (score >= 12) { label='MEDIUM'; recommendation='MEDIUM RISK — monitor closely; clear pending documents and follow up on delayed payments.'; }
+    else { label='LOW'; recommendation='LOW RISK — project on track; continue standard monitoring.'; }
+
+    document.getElementById('risk-result').innerHTML = `
+        <div class="card section">
+            <div class="flex-between"><h3>Result — ${projects[projectId].name}</h3>${badge(label, label+' RISK')}</div>
+            <div class="grid grid-4" style="margin-top:14px">
+                <div class="stat-card"><div class="stat-value">${disputes}</div><div class="stat-label">Open Disputes</div></div>
+                <div class="stat-card"><div class="stat-value">${pendingComp}</div><div class="stat-label">Pending Compensation</div></div>
+                <div class="stat-card"><div class="stat-value">${avgDelay.toFixed(1)}</div><div class="stat-label">Avg Delay (days)</div></div>
+                <div class="stat-card"><div class="stat-value">${pendingDocs}</div><div class="stat-label">Pending Documents</div></div>
+            </div>
+            <p style="margin-top:16px; font-size:1.1rem"><b>Score: ${score.toFixed(1)}</b></p>
+            <div class="recommendation-box"><b>Recommendation:</b> ${recommendation}</div>
+        </div>`;
+}
+</script>
+</body>
+</html>
