@@ -6,6 +6,25 @@ and a transparent **AI-assisted risk scoring** feature.
 
 ---
 
+## 0. What changed in this update
+
+- **New theme**: `assets/css/style.css` was redesigned (Poppins/Inter fonts, gradient navbar with active-link highlighting, card shadows/hover states, refined badges, forms, and tables). No page markup structure was broken — all existing pages automatically pick up the new look.
+- **New page — `add_parcel.php`**: lets a logged-in user (citizen or admin) add their own parcel and draw its boundary directly on a Leaflet map. Area (in acres) and coordinates are calculated automatically from the drawn shape, but remain editable. Linked from the navbar ("➕ Add Parcel") and from both dashboards.
+- **`assets/js/add_parcel.js`**: the map-drawing logic (Leaflet.draw), including a free place-search (OpenStreetMap Nominatim) to jump to a location before drawing.
+- **`migration.sql`**: optional database migration that adds a `boundary_geojson` column to `parcels` so the drawn shape itself (not just its centroid) is saved and re-displayed on the GIS map. The app auto-detects whether this column exists, so everything still works if you skip it — you'll just get the point + area without the saved shape outline.
+- `map.php`/`map.js` now render a parcel's drawn boundary polygon (if saved) in addition to its marker.
+
+### WAMP setup notes
+This project was originally written against XAMPP's MySQL defaults, which are **identical** to WAMP's defaults (`root` user, empty password, `localhost`, port 3306) — so `config.php` needs **no changes** to run under WAMP.
+
+In phpMyAdmin, you only need to:
+1. Import `schema.sql` once (Database → SQL tab → paste contents → Go) if you haven't already — this creates `land_acquisition_db` with all tables and demo data.
+2. **Optional:** run `migration.sql` the same way to add the `boundary_geojson` column and enable saving drawn parcel boundaries on the map.
+
+If your WAMP MySQL uses a different root password, update `$DB_PASS` in `config.php` accordingly.
+
+---
+
 ## 1. What's in this folder
 
 ```
